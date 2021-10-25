@@ -1,6 +1,7 @@
-<h1 style="color: red">Webserv<h1>
-
-## OSI Model
+<h1 >Webserv<h1>
+<h6 style="color: red;background:white; border-radius: 50%">header 6<h6>
+<h3>header 3<h3>
+ OSI Model
 
 the OSI Model provides a standard for different computer systems to be able to communicate with each other.
 
