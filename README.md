@@ -1,4 +1,4 @@
-<h1>Webserv<h1>
+<h1 style="color: red">Webserv<h1>
 
 ## OSI Model
 
