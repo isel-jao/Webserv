@@ -1,59 +1,115 @@
-// Server side C/C++ program to demonstrate Socket programming
+#if 1
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/socket.h>
+
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
-#define PORT 8080
-int main(int argc, char const *argv[])
+#include <iostream>
+#include <iostream>
+#include <stdlib.h>
+
+#define PORT 9909
+
+#define RESET "\033[0m"
+#define RED "\x1B[31m"
+#define GREEN "\x1B[32m"
+#define YELLOW "\x1B[33m"
+#define BLUE "\x1B[34m"
+#define MAGENTA "\x1B[35m"
+#define CYAN "\x1B[36m"
+#endif
+
+void error(const char *msg)
 {
-	int server_fd, new_socket, valread;
-	struct sockaddr_in address;
-	int opt = 1;
-	int addrlen = sizeof(address);
-	char buffer[1024] = {0};
-	char *hello = "Hello from server";
-	
-	// Creating socket file descriptor
-	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+	perror(msg);
+	exit(1);
+}
+
+int main()
+{
+	struct sockaddr_in srv;
+	struct fd_set fr, fw, fe;
+	int nRet = 0;
+
+	// create a socket
+	// socket(int domain, int type, int protocol)
+	int nsocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (nsocket < 0)
 	{
-		perror("socket failed");
+		std::cout << YELLOW << "the socket not opened"
+				  << RESET << std::endl;
+	}
+	else
+	{
+		std::cout << GREEN
+				  << "the socket opened successfuly\n"
+				  << RESET << "nsocket: " << nsocket
+				  << std::endl;
+	}
+
+	// Initilize the enviroment for the seckaddr structure
+	srv.sin_family = AF_INET;
+	srv.sin_port = htons(PORT);
+	srv.sin_addr.s_addr = INADDR_ANY; // inet_addr("127.0.0.1)
+	memset(&(srv.sin_zero), 0, 8);
+
+	// Bind to local host
+	nRet = bind(nsocket, (sockaddr *)&srv, sizeof(sockaddr));
+	if (nRet < 0)
+	{
+		std::cout << RED << "failed to bind to local prot"
+				  << RESET << std::endl;
 		exit(EXIT_FAILURE);
 	}
-	
-	// Forcefully attaching socket to the port 8080
-	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-												&opt, sizeof(opt)))
+	else
 	{
-		perror("setsockopt");
+		std::cout << GREEN << "the socket bound successfuly "
+				  << RESET << std::endl;
+	}
+
+	// listen the request from client (queues the requests)
+	nRet = listen(nsocket, 5);
+	if (nRet < 0)
+	{
+		std::cout << RED << "failed to start  to listen to local prot"
+				  << RESET << std::endl;
 		exit(EXIT_FAILURE);
 	}
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons( PORT );
-	
-	// Forcefully attaching socket to the port 8080
-	if (bind(server_fd, (struct sockaddr *)&address,
-								sizeof(address))<0)
+	else
 	{
-		perror("bind failed");
-		exit(EXIT_FAILURE);
+		std::cout << GREEN << "the socket started to listen to local port "
+				  << RESET << std::endl;
 	}
-	if (listen(server_fd, 3) < 0)
+
+	struct timeval tv;
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+
+	while (1)
 	{
-		perror("listen");
-		exit(EXIT_FAILURE);
+		FD_ZERO(&fr);
+		FD_ZERO(&fw);
+		FD_ZERO(&fe);
+
+		FD_SET(nsocket, &fr);
+		FD_SET(nsocket, &fe);
+
+		nRet = select(nsocket + 1, &fr, &fw, &fe, &tv);
+		if (nRet > 0)
+		{
+		}
+		if (nRet == 0)
+		{
+			std::cout << "no requset yet" << std::endl;
+		}
+		else
+		{
+			std::cout << "failed" << std:: endl;
+			exit (1);
+		}
 	}
-	if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-					(socklen_t*)&addrlen))<0)
-	{
-		perror("accept");
-		exit(EXIT_FAILURE);
-	}
-	valread = read( new_socket , buffer, 1024);
-	printf("%s\n",buffer );
-	send(new_socket , hello , strlen(hello) , 0 );
-	printf("Hello message sent\n");
+
 	return 0;
 }
