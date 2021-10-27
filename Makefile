@@ -1,42 +1,43 @@
-CC			=	g++
-CFLAGS		=	-Wall -Wextra -Werror 
+NAME = Webserv
 
-NAME    	= webserver
+CC = g++
 
-SRC_DIR		=	./srcs/
+CFLAGS =
+# CFLAGS = -Wall -Wextra -Werror
+
+
+SRCS_DIR	=	./srcs/
 OBJ_DIR		=	./objs/
+INC_DIR		=	./headers/
 
-SRC			+=	main.cpp
+SRC			+= main.cpp
 
 OBJ			=	$(addprefix $(OBJ_DIR),$(SRC:.cpp=.o))
 
+INC			=	$(addprefix -I,$(INC_DIR))
 
 RM			=	/bin/rm -f
 RM_DIR		=	/bin/rm -rf
 
-$(OBJ_DIR)%.o:$(SRC_DIR)%.cpp ./headers/*.hpp
-	$(CC) $(CFLAGS) -c $< -o $@
+$(OBJ_DIR)%.o:$(SRCS_DIR)%.cpp 
+	$(CC)  $(CFLAGS) -c $< -o $@
 
 all:
-	mkdir -p $(OBJ_DIR)
+	@mkdir -p $(OBJ_DIR)
 	$(MAKE) $(NAME) --no-print-directory
 
 $(NAME): $(OBJ)
-	$(CC) ${OBJ} -o ${NAME}
-
+	@$(CC)  $(OBJ)  -o $(NAME)
 
 clean:
-	rm -rf $(OBJ_DIR)
+	@$(RM_DIR) $(OBJ_DIR)
 
 fclean: clean
-	rm -f $(NAME)
 
-eclean: clean fclean
+	@rm -f $(NAME)
 
 re: fclean all
 
 test: all
-	clear
-	./${NAME} 
-norm:
-	norminette ./srcs/ ./includes/
+	./${NAME}
+
