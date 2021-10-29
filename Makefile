@@ -10,7 +10,7 @@ SRCS_DIR	=	./srcs/
 OBJ_DIR		=	./objs/
 INC_DIR		=	./headers/
 
-SRC			+= main.cpp
+SRC			+= server.cpp
 
 OBJ			=	${addprefix ${OBJ_DIR},${SRC:.cpp=.o}}
 
