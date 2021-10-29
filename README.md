@@ -18,7 +18,7 @@ A socket is an object similar to a file that allows a program to accept incoming
 A socket connection means the two machines have information about each other, including network location (IP address) and TCP port. (If we can use anology, IP address is the phone number and the TCP port is the extension).
 
 <h2>Socket Functions</h2>
-<h3 syle="font-whight: 700">int socket(int domain, int type, int protocol)<h3>
+<h3 syle="color: red">int socket(int domain, int type, int protocol)<h3>
 
 Used to create a new socket, returns a file descriptor for the socket or -1 on error.
 It takes three parameters:
