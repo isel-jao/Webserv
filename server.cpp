@@ -162,8 +162,9 @@ void HandleTCPClient(int clntSocket)
 	char echoBuffer[LENGTH]; /* Buffer for echo string */
 	int recvMsgSize;		 /* Size of received message */
 	/* Receive message from client */
-	if ((recvMsgSize = recv(clntSocket, echoBuffer, LENGTH, 0)) < 0)
-		DieWithError("recv() failed");
+	// if ((recvMsgSize = recv(clntSocket, echoBuffer, LENGTH, 0)) < 0)
+	// 	DieWithError("recv() failed");
+	int valread = read(clntSocket, echoBuffer, 30000);
 	printf("%s\n", echoBuffer);
 
 	/* Send received string and receive again until end of transmission */
@@ -172,7 +173,7 @@ void HandleTCPClient(int clntSocket)
 	/* Echo message back to client */
 	// if (send(clntSocket, response.c_str(), res_len, 0) != res_len)
 	// 	DieWithError("send() failed");
-	close(clntSocket); /* Close client socket */
+	// close(clntSocket); /* Close client socket */
 					   // }
 }
 void DieWithError(char const *errorMessage)
