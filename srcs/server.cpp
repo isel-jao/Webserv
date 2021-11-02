@@ -1,10 +1,12 @@
 // Server side C program to demonstrate HTTP Server programming
 #include <stdio.h>
+#include <iostream>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <netdb.h>
 
 #define PORT 8080
 int main(int argc, char const *argv[])
@@ -29,7 +31,6 @@ int main(int argc, char const *argv[])
 	address.sin_port = htons(PORT);
 
 	memset(address.sin_zero, '\0', sizeof address.sin_zero);
-
 	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
 	{
 		perror("In bind");
@@ -48,7 +49,6 @@ int main(int argc, char const *argv[])
 			perror("In accept");
 			exit(EXIT_FAILURE);
 		}
-
 		char buffer[30000] = {0};
 		valread = read(new_socket, buffer, 30000);
 		printf("%s\n", buffer);

@@ -24,8 +24,9 @@ ${OBJ_DIR}%.o:${SRCS_DIR}%.cpp
 
 all:
 	@mkdir -p ${OBJ_DIR}
-	${MAKE} ${NAME} --no-print-directory
+	# ${MAKE} ${NAME} --no-print-directory
 	${CC} client.cpp -o ${CLIENT}
+	${CC} server.cpp -o ${NAME}
 
 ${NAME}: ${OBJ}
 	@${CC}  ${OBJ}  -o ${NAME}
