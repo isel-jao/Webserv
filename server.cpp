@@ -10,31 +10,21 @@
 #include <string>
 #include <map>
 #include <arpa/inet.h> // for sockaddr_in and inet_ntoa()
-#define LENGTH 30000
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
+#define LENGTH 30000
+#define MAX_PEND 3
 int AcceptTCPConnection(int sock);
 int CreateTCPServerSocket(int portNo);
 void HandleTCPClient(int clntSocket);
-class responseHeader
-{
-private:
-	/* data */
-public:
-	responseHeader(/* args */);
-	~responseHeader();
-};
-
-responseHeader::responseHeader(/* args */)
-{
-}
-
-responseHeader::~responseHeader()
-{
-}
+void dieWithError(const char *err);
+std::string htmlToString(std::string file_name);
 
 int main(int argc, char *argv[])
 {
-	int *servSock;			   /* Socket descriptors for server */
+	std::vector<int> servSock; /* Socket descriptors for server */
 	int maxDescriptor;		   /* Maximum socket descriptor value */
 	fd_set sockSet;			   /* Set of socket descriptors for select() */
 	long timeout;			   /* Timeout value given on command-line */
@@ -43,21 +33,23 @@ int main(int argc, char *argv[])
 	int noPorts;			   /* Number of port specified on command-line */
 	int port;				   /* Looping variable for ports */
 	unsigned short portNo;	   /* Actual port number */
+	int ret;
+
 	if (argc < 3)
-	{ /* Test for correct number of arguments */
-		fprintf(stderr, "Usage: %s <Timeout (secs.)> <Port 1> ...\n", argv[0]);
-		exit(1);
-	}
-	timeout = atol(argv[1]);						 /* First arg: Timeout */
-	noPorts = argc - 2;								 /* Number of ports is argument count minus 2 */
-	servSock = (int *)malloc(noPorts * sizeof(int)); /* Allocate list of sockets for incoming connections */
-	maxDescriptor = -1;								 /* Initialize maxDescriptorfor use by select() */
+		dieWithError("Usage: Webserver <Timeout (secs.)> <Port 1> ...\n");
+
+	timeout = atol(argv[1]); /* First arg: Timeout */
+	noPorts = argc - 2;
+
+	servSock.reserve(noPorts); /* Allocate list of sockets for incoming connections */
+	maxDescriptor = -1;		   /* Initialize maxDescriptorfor use by select() */
+	std::string body = htmlToString(std::string("index.html"));
+	std::cout << body << std::endl;
 	for (port = 0; port < noPorts; port++)
-	{													/* Create list of ports and sockets to handle ports */
-		portNo = atoi(argv[port + 2]);					/* Add port to port list. Skip first two arguments */
+	{ /* Create list of ports and sockets to handle ports */
+		portNo = atoi(argv[port + 2]);
 		servSock[port] = CreateTCPServerSocket(portNo); /* Create port socket */
-		if (servSock[port] > maxDescriptor)				/* Determine if new descriptor is the largest */
-			maxDescriptor = servSock[port];
+		maxDescriptor = servSock[port];
 	}
 
 	printf("Startingserver: Hit return to shutdown\n");
@@ -74,13 +66,16 @@ int main(int argc, char *argv[])
 		selTimeout.tv_sec = timeout; /* timeout (secs.) */
 		selTimeout.tv_usec = 0;		 /* 0 microseconds */
 		/* Suspend program until descriptor is ready or timeout */
-		if (select(maxDescriptor + 1, &sockSet, NULL, NULL, &selTimeout) == 0)
-			printf("No echo requests for %ld secs...Server still alive\n", timeout);
+		ret = select(maxDescriptor + 1, &sockSet, NULL, NULL, &selTimeout);
+		if (ret == -1)
+			dieWithError("couldn't select socket");
+		else if (ret == 0)
+			std::cout << "No echo requests for " << timeout << "secs...Server still alive" << std::endl;
 		else
 		{
 			if (FD_ISSET(0, &sockSet))
 			{ /* Check keyboard */
-				printf("Shuttingdown server\n");
+				std::cout << "Shuttingdown server" << std::endl;
 				getchar();
 				running = 0;
 			}
@@ -93,8 +88,8 @@ int main(int argc, char *argv[])
 		}
 	}
 	for (port = 0; port < noPorts; port++)
-		close(servSock[port]); /* Close sockets */
-	free(servSock);			   /* Free list of sockets */
+		close(servSock[port]);
+	/* Close sockets */
 	exit(0);
 }
 int CreateTCPServerSocket(int portNo)
@@ -104,26 +99,19 @@ int CreateTCPServerSocket(int portNo)
 	int addrlen = sizeof(address);
 
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	{
-		perror("cannot create socket");
-		return 0;
-	}
-	/* htonl converts a long integer (e.g. address) to a network representation */
-	/* htons converts a short integer (e.g. port) to a network representation */
+		dieWithError("couldn't create socket");
+
 	memset((char *)&address, 0, sizeof(address));
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = htonl(INADDR_ANY);
 	address.sin_port = htons(portNo);
+
 	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
-	{
-		perror("bind failed");
-		exit(EXIT_FAILURE);
-	}
-	if (listen(server_fd, 3) < 0)
-	{
-		perror("In listen");
-		exit(EXIT_FAILURE);
-	}
+		dieWithError("bind failed");
+
+	if (listen(server_fd, MAX_PEND) < 0)
+		dieWithError("In listen");
+
 	return server_fd;
 }
 
@@ -134,35 +122,42 @@ int AcceptTCPConnection(int sock)
 	int addrlen = sizeof(address);
 	int new_socket;
 	if ((new_socket = accept(sock, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0)
-	{
-		perror("In accept");
-		exit(EXIT_FAILURE);
-	}
+		dieWithError("In listen");
 	return new_socket;
 }
 
 void HandleTCPClient(int clntSocket)
 {
-	std::string response =  "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nhellooooo world!";
-	int res_len = response.length();
+
+	std::string body =  htmlToString("index.html");
+	std::string header = "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: ";
+	header += std::to_string( body.length()) + "\n\n";
+	std::string response = header + body;
 	char echoBuffer[LENGTH]; /* Buffer for echo string */
 	int recvMsgSize;		 /* Size of received message */
-	/* Receive message from client */
-	// if ((recvMsgSize = recv(clntSocket, echoBuffer, LENGTH, 0)) < 0)
-	// 	DieWithError("recv() failed");
 	std::cout << response << std::endl;
 	int valread = read(clntSocket, echoBuffer, 30000);
-	
-	printf("%s\n", echoBuffer);
-	write(clntSocket,response.c_str(), response.length());
-	// sleep(2);
-	
-	/* Send received string and receive again until end of transmission */
-	// while (res_len > 0) /* zero indicates end of transmission */
-	// {
-	/* Echo message back to client */
-	// if (send(clntSocket, response.c_str(), res_len, 0) != res_len)
-	// 	DieWithError("send() failed");
+
+	std::cout << echoBuffer << std::endl;
+	write(clntSocket, response.c_str(), response.length());
 	close(clntSocket); /* Close client socket */
 					   // }
+}
+
+void dieWithError(const char *err)
+{
+	perror(err);
+	exit(EXIT_FAILURE);
+}
+
+std::string htmlToString(std::string file_name)
+{
+	
+	std::ifstream file(file_name.c_str()); //c_string because in c++98 iftream dont take a string file name but take cont char *
+
+	std::stringstream string;
+	string << file.rdbuf();
+	std::string result = string.str();
+	file.close(); // close the file(filename)
+	return result;
 }
