@@ -1,60 +1,74 @@
-// Server side C program to demonstrate HTTP Server programming
-#include <stdio.h>
-#include <iostream>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <netdb.h>
+#include "webserv.hpp"
 
-#define PORT 8080
-int main(int argc, char const *argv[])
+
+
+int main(int argc, char *argv[])
 {
-	int server_fd, new_socket;
-	long valread;
-	struct sockaddr_in address;
-	int addrlen = sizeof(address);
+	std::vector<int> servSock; /* Socket descriptors for server */
+	int maxDescriptor;		   /* Maximum socket descriptor value */
+	fd_set sockSet;			   /* Set of socket descriptors for select() */
+	long timeout;			   /* Timeout value given on command-line */
+	struct timeval selTimeout; /* Timeout for select() */
+	int running = 1;		   /* 1 if server should be running; 0 otherwise */
+	int noPorts;			   /* Number of port specified on command-line */
+	int port;				   /* Looping variable for ports */
+	unsigned short portNo;	   /* Actual port number */
+	int ret;
 
-	// Only this line has been changed. Everything is same.
-	char hello[] = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
+	if (argc < 3)
+		dieWithError("Usage: Webserver <Timeout (secs.)> <Port 1> ...\n");
 
-	// Creating socket file descriptor
-	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-	{
-		perror("In socket");
-		exit(EXIT_FAILURE);
+	timeout = atol(argv[1]); /* First arg: Timeout */
+	noPorts = argc - 2;
+
+	servSock.reserve(noPorts); /* Allocate list of sockets for incoming connections */
+	maxDescriptor = -1;		   /* Initialize maxDescriptorfor use by select() */
+	std::string body = htmlToString(std::string("index.html"));
+	std::cout << body << std::endl;
+	for (port = 0; port < noPorts; port++)
+	{ /* Create list of ports and sockets to handle ports */
+		portNo = atoi(argv[port + 2]);
+		servSock[port] = CreateTCPServerSocket(portNo); /* Create port socket */
+		maxDescriptor = servSock[port];
 	}
 
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons(PORT);
-
-	memset(address.sin_zero, '\0', sizeof address.sin_zero);
-	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
+	printf("Startingserver: Hit return to shutdown\n");
+	while (running)
 	{
-		perror("In bind");
-		exit(EXIT_FAILURE);
-	}
-	if (listen(server_fd, 10) < 0)
-	{
-		perror("In listen");
-		exit(EXIT_FAILURE);
-	}
-	while (1)
-	{
-		printf("\n+++++++ Waiting for new connection ++++++++\n\n");
-		if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0)
+		/* Zero socket descriptor vector and set for server sockets */
+		/* This must be reset every time select() is called */
+		FD_ZERO(&sockSet);
+		FD_SET(STDIN_FILENO, &sockSet); /* Add keyboard to descriptor vector */
+		for (port = 0; port < noPorts; port++)
+			FD_SET(servSock[port], &sockSet);
+		/* Timeout specification */
+		/* This must be reset every time select() is called */
+		selTimeout.tv_sec = timeout; /* timeout (secs.) */
+		selTimeout.tv_usec = 0;		 /* 0 microseconds */
+		/* Suspend program until descriptor is ready or timeout */
+		ret = select(maxDescriptor + 1, &sockSet, NULL, NULL, &selTimeout);
+		if (ret == -1)
+			dieWithError("couldn't select socket");
+		else if (ret == 0)
+			std::cout << "No echo requests for " << timeout << "secs...Server still alive" << std::endl;
+		else
 		{
-			perror("In accept");
-			exit(EXIT_FAILURE);
+			if (FD_ISSET(0, &sockSet))
+			{ /* Check keyboard */
+				std::cout << "Shuttingdown server" << std::endl;
+				getchar();
+				running = 0;
+			}
+			for (port = 0; port < noPorts; port++)
+				if (FD_ISSET(servSock[port], &sockSet))
+				{
+					printf("Request on port %d: ", port);
+					HandleTCPClient(AcceptTCPConnection(servSock[port]));
+				}
 		}
-		char buffer[30000] = {0};
-		valread = read(new_socket, buffer, 30000);
-		printf("%s\n", buffer);
-		write(new_socket, hello, strlen(hello));
-		printf("------------------Hello message sent-------------------");
-		close(new_socket);
 	}
-	return 0;
+	for (port = 0; port < noPorts; port++)
+		close(servSock[port]);
+	/* Close sockets */
+	exit(0);
 }
