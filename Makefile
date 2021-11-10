@@ -32,7 +32,7 @@ ${OBJ_DIR}%.o:${SRCS_DIR}%.cpp
 
 all:
 	@mkdir -p ${OBJ_DIR}
-	@echo "${GREEN}Compiling minishell..."
+	@echo "${GREEN}Compiling WebServ..."
 	@${MAKE} ${NAME} --no-print-directory
 	@echo "\n${RESET}Done !"
 
